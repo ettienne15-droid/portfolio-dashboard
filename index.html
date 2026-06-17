@@ -340,15 +340,33 @@ async function loadPrices() {
   const symParam = tdList.map(s => s.tdSym).join(',');
 
   let data = {};
+
+  // Serve from cache if last successful fetch was < 60 seconds ago
+  try {
+    const cached = JSON.parse(sessionStorage.getItem('tdCache') || 'null');
+    if (cached && (Date.now() - cached.t) < 60000) {
+      const age = Math.round((Date.now() - cached.t) / 1000);
+      renderPrices(cached.d);
+      badge.textContent = '✓ Live';
+      badge.className = 'card-title-badge live';
+      ts.textContent = `Last updated: ${new Date(cached.t).toLocaleTimeString('en-GB')} · cached ${age}s ago`;
+      // Still fetch SPY for market stat
+      fetch(`https://api.twelvedata.com/price?symbol=SPY&apikey=${TD_KEY}`)
+        .then(r=>r.json()).then(d=>{
+          if(d && d.price) {
+            // we don't have previous close here so skip percent change
+          }
+        }).catch(()=>{});
+      return;
+    }
+  } catch(e) {}
+
   try {
     const url = `https://api.twelvedata.com/quote?symbol=${symParam}&apikey=${TD_KEY}`;
     const res = await fetch(url);
     const raw = await res.json();
 
-    // Show API status in the UI so we can debug
-    const apiMsg = raw.message || raw.status || 'OK';
-    const apiCode = raw.code || '';
-    ts.textContent = `API: ${apiCode ? apiCode+' — ' : ''}${String(apiMsg).slice(0,100)}`;
+    if (raw.code === 429 || raw.status === 'error') throw new Error(raw.message || 'API error');
 
     // Normalise: multi-symbol → nested by symbol; single → direct object
     tdList.forEach(s => {
@@ -356,7 +374,11 @@ async function loadPrices() {
       if (r && !r.code && r.close) data[s.sym] = r;
       else if (raw.symbol === s.tdSym && raw.close) data[s.sym] = raw;
     });
-    console.log('[TwelveData] matched:', Object.keys(data), '| raw keys:', Object.keys(raw).slice(0,5));
+
+    if (Object.keys(data).length > 0) {
+      // Cache successful result (timestamp + data)
+      sessionStorage.setItem('tdCache', JSON.stringify({t: Date.now(), d: data}));
+    }
 
     // SPY for S&P stat
     try {
@@ -373,17 +395,31 @@ async function loadPrices() {
 
   } catch(err) {
     console.error('[TwelveData] fetch error:', err.message);
-    badge.textContent = 'Partial';
+    // On rate limit or error, try the cache (even if stale)
+    try {
+      const cached = JSON.parse(sessionStorage.getItem('tdCache') || 'null');
+      if (cached && cached.d) {
+        const age = Math.round((Date.now() - cached.t) / 1000);
+        renderPrices(cached.d);
+        badge.textContent = 'Cached';
+        badge.className = 'card-title-badge loading';
+        ts.textContent = `Rate limited — showing cached data from ${new Date(cached.t).toLocaleTimeString('en-GB')} (${age}s ago). Refresh in a minute.`;
+        return;
+      }
+    } catch(e) {}
+    badge.textContent = 'Rate limited';
     badge.className = 'card-title-badge error';
-    ts.textContent = 'Price fetch error — showing last known data';
+    ts.textContent = 'Too many refreshes — wait 60 seconds and try again';
   }
 
   // Always render — hardcoded fallbacks handle HXSCL/SPCX
-  renderPrices(data);
   if (Object.keys(data).length > 0) {
+    renderPrices(data);
     badge.textContent = '✓ Live';
     badge.className = 'card-title-badge live';
     ts.textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-GB') + ' · Prices via Twelve Data';
+  } else {
+    renderPrices({});
   }
 }
 
