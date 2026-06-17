@@ -345,7 +345,10 @@ async function loadPrices() {
     const res = await fetch(url);
     const raw = await res.json();
 
-    console.log('[TwelveData] status:', raw.status, '| keys:', Object.keys(raw).slice(0,5));
+    // Show API status in the UI so we can debug
+    const apiMsg = raw.message || raw.status || 'OK';
+    const apiCode = raw.code || '';
+    ts.textContent = `API: ${apiCode ? apiCode+' — ' : ''}${String(apiMsg).slice(0,100)}`;
 
     // Normalise: multi-symbol → nested by symbol; single → direct object
     tdList.forEach(s => {
@@ -353,7 +356,7 @@ async function loadPrices() {
       if (r && !r.code && r.close) data[s.sym] = r;
       else if (raw.symbol === s.tdSym && raw.close) data[s.sym] = raw;
     });
-    console.log('[TwelveData] matched:', Object.keys(data));
+    console.log('[TwelveData] matched:', Object.keys(data), '| raw keys:', Object.keys(raw).slice(0,5));
 
     // SPY for S&P stat
     try {
