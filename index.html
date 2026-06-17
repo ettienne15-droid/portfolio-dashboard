@@ -256,14 +256,14 @@ const TD_KEY = '46215f3179294abbb32cc99417612e0c';
 const STOCKS = [
   {sym:'MSFT', tdSym:'MSFT', name:'Microsoft',          direct:5065, trueW:12.2, flag:'ow'},
   {sym:'AMZN', tdSym:'AMZN', name:'Amazon',             direct:4488, trueW:9.9,  flag:'ow'},
-  {sym:'BRK.B',tdSym:'BRK/B',name:'Berkshire Hathaway', direct:4239, trueW:8.6,  flag:'ow'},
+  {sym:'BRK.B',tdSym:'BRK-B',name:'Berkshire Hathaway', direct:4239, trueW:8.6,  flag:'ow'},
   {sym:'NVDA', tdSym:'NVDA', name:'Nvidia',              direct:3027, trueW:8.0,  flag:'nt'},
   {sym:'ZBRA', tdSym:'ZBRA', name:'Zebra Technologies',  direct:1814, trueW:3.6,  flag:''},
   {sym:'IREN', tdSym:'IREN', name:'IREN Ltd (AI Cloud)', direct:1652, trueW:3.1,  flag:''},
   {sym:'SYK',  tdSym:'SYK',  name:'Stryker',             direct:1326, trueW:2.7,  flag:''},
   {sym:'VST',  tdSym:'VST',  name:'Vistra',              direct:1291, trueW:2.6,  flag:''},
   {sym:'RKLB', tdSym:'RKLB', name:'Rocket Lab',          direct:1243, trueW:2.4,  flag:''},
-  {sym:'HXSCL',tdSym:'HXSCL',name:'SK Hynix GDR',       direct:1050, trueW:2.1,  flag:''},
+  {sym:'HXSCL',tdSym:null,   name:'SK Hynix GDR',       direct:1050, trueW:2.1,  flag:''},
   {sym:'SPCX', tdSym:null,   name:'SpaceX (pre-IPO)',    direct:913,  trueW:1.7,  flag:''},
   {sym:'NOW',  tdSym:'NOW',  name:'ServiceNow',          direct:683,  trueW:1.4,  flag:''},
   {sym:'NFLX', tdSym:'NFLX', name:'Netflix',             direct:570,  trueW:1.2,  flag:''},
@@ -335,30 +335,25 @@ async function loadPrices() {
   badge.className = 'card-title-badge loading';
   body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;"><span class="spinner"></span>Fetching live prices…</td></tr>';
 
-  // Join symbols with raw commas — Twelve Data expects unencoded commas
+  // Only fetch symbols with a tdSym (excludes HXSCL, SPCX)
   const tdList = STOCKS.filter(s => s.tdSym);
   const symParam = tdList.map(s => s.tdSym).join(',');
 
+  let data = {};
   try {
     const url = `https://api.twelvedata.com/quote?symbol=${symParam}&apikey=${TD_KEY}`;
     const res = await fetch(url);
     const raw = await res.json();
 
-    // Debug: log raw API response to browser console
-    console.log('[TwelveData] raw response:', JSON.stringify(raw).slice(0, 500));
-
-    // If top-level has "code" or "status"="error" — API error
-    if (raw.code || raw.status === 'error') {
-      throw new Error(raw.message || 'API error: ' + JSON.stringify(raw));
-    }
+    console.log('[TwelveData] status:', raw.status, '| keys:', Object.keys(raw).slice(0,5));
 
     // Normalise: multi-symbol → nested by symbol; single → direct object
-    const data = {};
     tdList.forEach(s => {
-      if (raw[s.tdSym] && !raw[s.tdSym].code) data[s.sym] = raw[s.tdSym];
-      else if (raw.symbol === s.tdSym) data[s.sym] = raw;
+      const r = raw[s.tdSym];
+      if (r && !r.code && r.close) data[s.sym] = r;
+      else if (raw.symbol === s.tdSym && raw.close) data[s.sym] = raw;
     });
-    console.log('[TwelveData] parsed symbols:', Object.keys(data));
+    console.log('[TwelveData] matched:', Object.keys(data));
 
     // SPY for S&P stat
     try {
@@ -373,15 +368,19 @@ async function loadPrices() {
       }
     } catch(e) {}
 
-    renderPrices(data);
+  } catch(err) {
+    console.error('[TwelveData] fetch error:', err.message);
+    badge.textContent = 'Partial';
+    badge.className = 'card-title-badge error';
+    ts.textContent = 'Price fetch error — showing last known data';
+  }
+
+  // Always render — hardcoded fallbacks handle HXSCL/SPCX
+  renderPrices(data);
+  if (Object.keys(data).length > 0) {
     badge.textContent = '✓ Live';
     badge.className = 'card-title-badge live';
     ts.textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-GB') + ' · Prices via Twelve Data';
-  } catch(err) {
-    badge.textContent = 'Error';
-    badge.className = 'card-title-badge error';
-    ts.textContent = 'Failed to load prices — check connection or API key';
-    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--red);">Could not load prices. Try refreshing.</td></tr>';
   }
 }
 
