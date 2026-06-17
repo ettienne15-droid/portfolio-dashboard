@@ -335,23 +335,23 @@ async function loadPrices() {
   badge.className = 'card-title-badge loading';
   body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;"><span class="spinner"></span>Fetching live prices…</td></tr>';
 
-  // Build symbol list (skip SPCX — pre-IPO, not on exchange)
-  const tdSyms = STOCKS.filter(s => s.tdSym).map(s => s.tdSym).join(',');
+  // Encode each symbol individually, join with raw comma (not %2C)
+  const tdList = STOCKS.filter(s => s.tdSym);
+  const symParam = tdList.map(s => encodeURIComponent(s.tdSym)).join(',');
 
   try {
-    const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(tdSyms)}&apikey=${TD_KEY}`;
+    const url = `https://api.twelvedata.com/quote?symbol=${symParam}&apikey=${TD_KEY}`;
     const res = await fetch(url);
     const raw = await res.json();
 
-    // Normalise: if only 1 symbol, TD returns the object directly, not nested
+    // Normalise: multi-symbol response is nested by symbol key
     const data = {};
-    STOCKS.filter(s => s.tdSym).forEach(s => {
-      const key = s.tdSym;
-      if (raw[key]) data[s.sym] = raw[key];
-      else if (raw.symbol === key) data[s.sym] = raw; // single-symbol fallback
+    tdList.forEach(s => {
+      if (raw[s.tdSym]) data[s.sym] = raw[s.tdSym];
+      else if (raw.symbol === s.tdSym) data[s.sym] = raw;
     });
 
-    // Also try SPY for the S&P stat
+    // SPY for S&P stat
     try {
       const spy = await fetch(`https://api.twelvedata.com/quote?symbol=SPY&apikey=${TD_KEY}`);
       const spyData = await spy.json();
