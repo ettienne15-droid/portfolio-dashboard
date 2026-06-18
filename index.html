@@ -343,13 +343,13 @@ async function loadPrices() {
 
   // Serve from cache if last successful fetch was < 60 seconds ago
   try {
-    const cached = JSON.parse(sessionStorage.getItem('tdCache') || 'null');
-    if (cached && (Date.now() - cached.t) < 60000) {
-      const age = Math.round((Date.now() - cached.t) / 1000);
+    const cached = JSON.parse(localStorage.getItem('tdCache') || 'null');
+    if (cached && (Date.now() - cached.t) < 7200000) {
+      const ageMin = Math.round((Date.now() - cached.t) / 60000);
       renderPrices(cached.d);
       badge.textContent = '✓ Live';
       badge.className = 'card-title-badge live';
-      ts.textContent = `Last updated: ${new Date(cached.t).toLocaleTimeString('en-GB')} · cached ${age}s ago`;
+      ts.textContent = `Last updated: ${new Date(cached.t).toLocaleTimeString('en-GB')} · cached ${ageMin < 1 ? '<1 min' : ageMin + ' min'} ago`;
       // Still fetch SPY for market stat
       fetch(`https://api.twelvedata.com/price?symbol=SPY&apikey=${TD_KEY}`)
         .then(r=>r.json()).then(d=>{
@@ -377,7 +377,7 @@ async function loadPrices() {
 
     if (Object.keys(data).length > 0) {
       // Cache successful result (timestamp + data)
-      sessionStorage.setItem('tdCache', JSON.stringify({t: Date.now(), d: data}));
+      localStorage.setItem('tdCache', JSON.stringify({t: Date.now(), d: data}));
     }
 
     // SPY for S&P stat
@@ -397,19 +397,19 @@ async function loadPrices() {
     console.error('[TwelveData] fetch error:', err.message);
     // On rate limit or error, try the cache (even if stale)
     try {
-      const cached = JSON.parse(sessionStorage.getItem('tdCache') || 'null');
+      const cached = JSON.parse(localStorage.getItem('tdCache') || 'null');
       if (cached && cached.d) {
-        const age = Math.round((Date.now() - cached.t) / 1000);
+        const ageMin = Math.round((Date.now() - cached.t) / 60000);
         renderPrices(cached.d);
         badge.textContent = 'Cached';
         badge.className = 'card-title-badge loading';
-        ts.textContent = `Rate limited — showing cached data from ${new Date(cached.t).toLocaleTimeString('en-GB')} (${age}s ago). Refresh in a minute.`;
+        ts.textContent = `Rate limited — showing cached data from ${new Date(cached.t).toLocaleTimeString('en-GB')} (${ageMin} min ago). Prices refresh every 2 hrs.`;
         return;
       }
     } catch(e) {}
     badge.textContent = 'Rate limited';
     badge.className = 'card-title-badge error';
-    ts.textContent = 'Too many refreshes — wait 60 seconds and try again';
+    ts.textContent = 'API rate limited — prices will load on next successful fetch. Try again in a minute.';
   }
 
   // Always render — hardcoded fallbacks handle HXSCL/SPCX
