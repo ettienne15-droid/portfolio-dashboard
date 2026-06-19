@@ -1,490 +1,338 @@
-<!DOCTYPE html>
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Portfolio Dashboard",
+  "schemaVersion": 1,
+  "description": "Ettienne's portfolio dashboard showing effective exposures (direct + ETF overlap), concentration alerts, sector allocation chart, and latest morning note pulled from Gmail drafts.",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ettienne's Portfolio Dashboard</title>
+<title>Portfolio Dashboard</title>
 <style>
-:root{--bg:#f1f5f9;--card:#fff;--hdr:#0f172a;--text:#1e293b;--sub:#64748b;--border:#e2e8f0;--red:#dc2626;--amber:#d97706;--green:#16a34a;--blue:#2563eb;--teal:#0d9488;--red-bg:#fef2f2;--amber-bg:#fffbeb;--blue-bg:#eff6ff;--green-bg:#f0fdf4;}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
-.sr-only{position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden;}
-
-/* Header */
-.hdr{background:var(--hdr);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
-.hdr-left h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;}
-.hdr-left .sub{font-size:11px;color:#94a3b8;margin-top:2px;}
-.hdr-right{text-align:right;}
-.hdr-right .total{font-size:26px;font-weight:800;color:#60a5fa;letter-spacing:-1px;}
-.hdr-right .sub{font-size:11px;color:#94a3b8;}
-
-/* Layout */
-.main{padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1200px;margin:0 auto;}
-
-/* Cards */
-.card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
-.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#94a3b8;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
-.card-title-badge{font-size:10px;text-transform:none;letter-spacing:0;font-weight:500;background:#f1f5f9;color:var(--sub);padding:2px 8px;border-radius:5px;}
-.card-title-badge.live{background:#dcfce7;color:#166534;}
-.card-title-badge.loading{background:#fef3c7;color:#92400e;}
-.card-title-badge.error{background:#fee2e2;color:#991b1b;}
-
-/* Stats strip */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-.stat{background:var(--card);border-radius:10px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.stat .val{font-size:20px;font-weight:800;margin-bottom:2px;}
-.stat .lbl{font-size:11px;color:var(--sub);font-weight:500;}
-
-/* Alerts */
-.alert{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:9px;margin-bottom:7px;border-left:3px solid;}
-.alert:last-child{margin-bottom:0;}
-.a-red{background:var(--red-bg);border-color:var(--red);}
-.a-amber{background:var(--amber-bg);border-color:var(--amber);}
-.a-blue{background:var(--blue-bg);border-color:var(--blue);}
-.alert-name{font-weight:700;font-size:13px;}
-.alert-sub{font-size:11px;color:var(--sub);margin-top:1px;}
-.alert-pct{font-size:17px;font-weight:800;margin-left:12px;flex-shrink:0;}
-.c-red{color:var(--red);} .c-amber{color:var(--amber);} .c-blue{color:var(--blue);} .c-green{color:var(--green);}
-
-/* Prices table */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-thead th{text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;padding:6px 10px;border-bottom:2px solid var(--border);white-space:nowrap;}
-thead th.r{text-align:right;}
-tbody td{padding:8px 10px;border-bottom:1px solid #f8fafc;vertical-align:middle;}
-tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover td{background:#f8fafc;}
-.sym{font-weight:700;font-size:13px;font-family:'SF Mono','Menlo',monospace;}
-.co-name{color:var(--sub);font-size:11px;margin-top:1px;}
-.price{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;}
-.chg{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;white-space:nowrap;}
-.chg.up{color:var(--green);}
-.chg.dn{color:var(--red);}
-.chg.fl{color:var(--sub);}
-.weight-bar{display:inline-flex;align-items:center;gap:6px;}
-.bar-bg{display:inline-block;width:60px;height:5px;background:#e2e8f0;border-radius:3px;flex-shrink:0;}
-.bar-fg{height:100%;border-radius:3px;display:block;}
-.flag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap;}
-.f-red{background:#fee2e2;color:#b91c1c;}
-.f-amber{background:#fef3c7;color:#92400e;}
-.f-gray{background:#f1f5f9;color:var(--sub);}
-.td-ow{color:var(--red);font-weight:700;}
-.td-nt{color:var(--amber);font-weight:700;}
-
-/* Valuation cols */
-.val-col{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;}
-.vs-hi{color:var(--red);font-weight:700;}
-.vs-mid{color:var(--amber);font-weight:600;}
-.vs-ok{color:var(--sub);}
-.vs-disc{color:var(--green);font-weight:600;}
-.vs-deep{color:var(--teal);font-weight:700;}
-.peg-exc{color:var(--teal);font-weight:700;}
-.peg-good{color:var(--green);font-weight:600;}
-.peg-fair{color:var(--amber);font-weight:600;}
-.peg-exp{color:var(--red);font-weight:700;}
-.peg-na{color:#94a3b8;}
-
-/* Note */
-.note-body{font-size:12.5px;line-height:1.85;color:#334155;border:1px solid var(--border);border-radius:9px;padding:16px 18px;background:#f8fafc;max-height:550px;overflow-y:auto;white-space:pre-wrap;font-family:'Menlo','Consolas','Courier New',monospace;}
-.note-empty{color:#94a3b8;font-style:italic;text-align:center;padding:40px;border:1px dashed var(--border);border-radius:9px;}
-
-/* Two col */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-
-/* Val legend */
-.val-leg{display:flex;gap:12px;flex-wrap:wrap;padding:8px 0 2px;font-size:10.5px;color:var(--sub);}
-.val-leg-item{display:flex;align-items:center;gap:4px;}
-.val-leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.tbl-note{font-size:10px;color:#94a3b8;margin-top:8px;border-top:1px solid #f1f5f9;padding-top:6px;}
-
-/* Refresh indicator */
-.refresh-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
-.refresh-info{font-size:11px;color:var(--sub);}
-.btn-refresh{font-size:11px;color:var(--blue);cursor:pointer;border:1px solid #dbeafe;background:#eff6ff;padding:3px 10px;border-radius:5px;font-weight:600;}
-.btn-refresh:hover{background:#dbeafe;}
-
-/* Spinner */
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e2e8f0;border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* Footer */
-.footer{text-align:center;font-size:10px;color:#94a3b8;padding:16px;margin-top:4px;}
-
-/* Responsive */
-@media(max-width:700px){
-  .stats{grid-template-columns:repeat(2,1fr);}
-  .two-col{grid-template-columns:1fr;}
-  .hdr-right .total{font-size:20px;}
-  thead th.hide-sm,tbody td.hide-sm{display:none;}
-}
-@media(max-width:420px){
-  .stats{grid-template-columns:1fr 1fr;}
-  .main{padding:10px;}
-  .card{padding:14px;}
-}
+  :root { color-scheme: light; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; line-height: 1.5; }
+  .sr-only { position:absolute; width:1px; height:1px; clip:rect(0,0,0,0); overflow:hidden; }
+  .page-header { background: #0f172a; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .page-header h1 { font-size: 17px; font-weight: 600; }
+  .page-header .meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .port-total .amount { font-size: 26px; font-weight: 700; color: #60a5fa; letter-spacing: -1px; }
+  .port-total .sub { font-size: 11px; color: #94a3b8; text-align: right; }
+  .main { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .stat-card .val { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+  .stat-card .lbl { font-size: 11px; color: #64748b; font-weight: 500; }
+  .c-red { color: #dc2626; } .c-amber { color: #d97706; } .c-blue { color: #2563eb; } .c-slate { color: #475569; } .c-green { color: #16a34a; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #94a3b8; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .card-title-sub { font-size: 10px; color: #cbd5e1; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .chart-wrap { display: flex; gap: 16px; align-items: center; }
+  .legend { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+  .leg-row { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .leg-label { flex: 1; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leg-pct { font-weight: 600; color: #1e293b; font-size: 12px; }
+  .alert { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border-left: 3px solid; }
+  .a-red { background: #fef2f2; border-color: #dc2626; }
+  .a-amber { background: #fffbeb; border-color: #d97706; }
+  .a-blue { background: #eff6ff; border-color: #2563eb; }
+  .alert-name { font-weight: 600; font-size: 13px; }
+  .alert-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
+  .alert-pct { font-size: 16px; font-weight: 700; margin-left: 12px; flex-shrink: 0; }
+  .exp-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th { text-align: left; font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 8px; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
+  thead th.val-col { background: #f8fafc; border-left: 1px solid #e2e8f0; }
+  tbody td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  tbody td.val-col { background: #fafbfc; border-left: 1px solid #f1f5f9; }
+  tbody tr:hover td { background: #f8fafc; }
+  tbody tr:hover td.val-col { background: #f3f4f6; }
+  .bar-bg { display: inline-block; width: 70px; height: 5px; background: #e2e8f0; border-radius: 3px; vertical-align: middle; }
+  .bar-fg { height: 100%; border-radius: 3px; display: block; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .b-red { background: #fee2e2; color: #b91c1c; }
+  .b-amber { background: #fef3c7; color: #92400e; }
+  .b-gray { background: #f1f5f9; color: #64748b; }
+  .b-green { background: #dcfce7; color: #166534; }
+  .td-ow { color: #dc2626; font-weight: 700; }
+  .td-nt { color: #d97706; font-weight: 600; }
+  .val-num { font-variant-numeric: tabular-nums; font-size: 12px; }
+  .vs-premium-high { color: #dc2626; font-weight: 700; }
+  .vs-premium-mid  { color: #d97706; font-weight: 600; }
+  .vs-neutral      { color: #64748b; }
+  .vs-discount-mid { color: #16a34a; font-weight: 600; }
+  .vs-discount-high{ color: #0d9488; font-weight: 700; }
+  .peg-low  { color: #0d9488; font-weight: 700; }
+  .peg-mid  { color: #16a34a; font-weight: 600; }
+  .peg-fair { color: #d97706; font-weight: 600; }
+  .peg-high { color: #dc2626; font-weight: 700; }
+  .peg-na   { color: #94a3b8; }
+  .note-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .note-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .note-hdr-title { font-size: 14px; font-weight: 600; }
+  .note-badge { font-size: 10px; background: #f1f5f9; color: #475569; padding: 3px 8px; border-radius: 5px; font-weight: 500; }
+  .note-badge-live { background: #dcfce7; color: #166534; }
+  .note-body { font-size: 12.5px; line-height: 1.8; color: #334155; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #f8fafc; max-height: 520px; overflow-y: auto; white-space: pre-wrap; font-family: 'Menlo', 'Consolas', monospace; }
+  .note-empty { color: #94a3b8; font-style: italic; font-size: 13px; text-align: center; padding: 36px; border: 1px dashed #e2e8f0; border-radius: 8px; }
+  .val-legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 0 2px; font-size: 10.5px; color: #64748b; }
+  .val-legend-item { display: flex; align-items: center; gap: 4px; }
+  .val-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tbl-footnote { font-size: 10px; color: #94a3b8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #f1f5f9; }
+  .footer { text-align: center; font-size: 10px; color: #94a3b8; padding: 12px; }
 </style>
 </head>
 <body>
-<h2 class="sr-only">Ettienne's portfolio dashboard — live prices, morning note, and valuation analysis.</h2>
+<h2 class="sr-only">Ettienne's portfolio dashboard — effective exposures, concentration alerts, sector allocation, valuation vs peers, and daily morning note.</h2>
 
-<div class="hdr">
-  <div class="hdr-left">
-    <h1>📊 Ettienne's Portfolio</h1>
-    <div class="sub" id="hdrDate">Loading…</div>
+<div class="page-header">
+  <div>
+    <h1>&#x1F4CA; Portfolio Dashboard</h1>
+    <div class="meta" id="headerMeta">—</div>
   </div>
-  <div class="hdr-right">
-    
-    <div class="sub">15 positions · 3 overweights</div>
-  </div>
+  <div class="port-total">
+    <div class="sub">Data as of Thu 19 Jun 2026 · SPCX added</div>
+  </div></div>
 </div>
 
 <div class="main">
 
-  <!-- Stats strip -->
-  <div class="stats">
-    <div class="stat"><div class="val c-blue">53.5%</div><div class="lbl">Single stocks</div></div>
-    <div class="stat"><div class="val c-amber">45.7%</div><div class="lbl">True tech exposure</div></div>
-    <div class="stat"><div class="val c-red">3</div><div class="lbl">Overweight positions</div></div>
-    <div class="stat"><div class="val c-green" id="mktStat">—</div><div class="lbl">S&amp;P 500 today</div></div>
+  <div class="stats-strip">
+    <div class="stat-card">
+      <div class="val c-blue">53.5%</div>
+      <div class="lbl">Single stocks</div>
+    </div>
+    <div class="stat-card">
+      <div class="val c-slate">46.5%</div>
+      <div class="lbl">ETFs</div>
+    </div>
+    <div class="stat-card">
+      <div class="val c-amber">45.7%</div>
+      <div class="lbl">True tech exposure</div>
+    </div>
+    <div class="stat-card">
+      <div class="val c-red">3</div>
+      <div class="lbl">Overweight positions (&gt;8%)</div>
+    </div>
   </div>
 
-  <!-- Two col: alerts + note badge -->
   <div class="two-col">
+    <div class="card">
+      <div class="card-title">Effective sector allocation (direct + ETF overlap)</div>
+      <div class="chart-wrap">
+        <canvas id="sChart" width="148" height="148" style="flex-shrink:0"></canvas>
+        <div class="legend" id="sLegend"></div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">Concentration alerts</div>
       <div class="alert a-red">
-        <div><div class="alert-name">MSFT</div><div class="alert-sub">Largest position — 2 lots · direct + ETFs</div></div>
+        <div><div class="alert-name">MSFT <span style="font-size:10px;color:#94a3b8;font-weight:400">direct + ETFs</span></div><div class="alert-sub">Largest position — held in 2 separate lots</div></div>
         <div class="alert-pct c-red">12.2%</div>
       </div>
       <div class="alert a-red">
-        <div><div class="alert-name">AMZN</div><div class="alert-sub">$200bn capex risk — monitor FCF</div></div>
+        <div><div class="alert-name">AMZN <span style="font-size:10px;color:#94a3b8;font-weight:400">direct + ETFs</span></div><div class="alert-sub">$200bn capex risk — monitor FCF closely</div></div>
         <div class="alert-pct c-red">9.9%</div>
       </div>
       <div class="alert a-amber">
-        <div><div class="alert-name">BRK.B</div><div class="alert-sub">Deploying cash · defensive anchor</div></div>
+        <div><div class="alert-name">BRK.B <span style="font-size:10px;color:#94a3b8;font-weight:400">direct + ETFs</span></div><div class="alert-sub">Deploying cash into AI infrastructure</div></div>
         <div class="alert-pct c-amber">8.6%</div>
       </div>
       <div class="alert a-amber">
-        <div><div class="alert-name">NVDA</div><div class="alert-sub">ETFs add +38% on top of direct</div></div>
+        <div><div class="alert-name">NVDA <span style="font-size:10px;color:#94a3b8;font-weight:400">direct + ETFs</span></div><div class="alert-sub">ETFs add +38% on top of direct holding</div></div>
         <div class="alert-pct c-amber">8.0%</div>
       </div>
       <div class="alert a-blue">
-        <div><div class="alert-name">True tech</div><div class="alert-sub">CNDX Nasdaq ETF compounds overlap</div></div>
+        <div><div class="alert-name">Total tech</div><div class="alert-sub">CNDX (Nasdaq ETF) compounds single-stock overlap</div></div>
         <div class="alert-pct c-blue">45.7%</div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">ETF positions <span class="card-title-badge">No daily coverage</span></div>
-      <table>
-        <thead><tr><th>ETF</th><th>Name</th><th class="r">Weight</th></tr></thead>
-        <tbody>
-          <tr><td class="sym">VUSA</td><td><div class="co-name">Vanguard S&amp;P 500</div></td><td class="price">25.5%</td></tr>
-          <tr><td class="sym">VWRL</td><td><div class="co-name">Vanguard All-World</div></td><td class="price">8.0%</td></tr>
-          <tr><td class="sym">FTXR</td><td><div class="co-name">Innovative Transport</div></td><td class="price">6.3%</td></tr>
-          <tr><td class="sym">VHYL</td><td><div class="co-name">Vanguard High Div</div></td><td class="price">3.8%</td></tr>
-          <tr><td class="sym">CNDX</td><td><div class="co-name">Nasdaq 100</div></td><td class="price">2.8%</td></tr>
-        </tbody>
-      </table>
-    </div>
   </div>
 
-  <!-- Live prices -->
   <div class="card">
     <div class="card-title">
-      Live prices — single stocks
-      <span class="card-title-badge" id="priceBadge">Loading…</span>
+      Effective exposure + valuation vs sector peers
+      <span class="card-title-sub" id="valUpdated">Valuation data as of 10 Jun 2026</span>
     </div>
-    <div class="refresh-row">
-      <div class="refresh-info" id="priceTimestamp">Fetching live prices…</div>
-      <button class="btn-refresh" onclick="loadPrices()">↻ Refresh prices</button>
+    <div class="val-legend">
+      <span style="font-weight:600;color:#475569;margin-right:4px">vs Sect:</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#dc2626"></span> &gt;+30% premium</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#d97706"></span> +10–30% premium</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#64748b"></span> ±10% in-line</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#16a34a"></span> &gt;-10% discount</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#0d9488"></span> &gt;-40% deep discount</span>
+      <span style="margin-left:12px;font-weight:600;color:#475569;margin-right:4px">PEG:</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#0d9488"></span> &lt;0.5 exceptional</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#16a34a"></span> 0.5–1.0 good</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#d97706"></span> 1.0–2.0 fair</span>
+      <span class="val-legend-item"><span class="val-legend-dot" style="background:#dc2626"></span> &gt;2.0 expensive</span>
     </div>
-    <div class="tbl-wrap">
+    <div class="exp-table-wrap">
       <table>
         <thead>
           <tr>
             <th>Stock</th>
-            <th class="r">Price</th>
-            <th class="r">Day chg</th>
-            <th class="hide-sm">Weight</th>
-            <th class="hide-sm">Flag</th>
-            <th class="r hide-sm">Fwd P/E</th>
-            <th class="r hide-sm">vs Sect</th>
-            <th class="r hide-sm">PEG</th>
+            <th>True %</th>
+            <th>Weight</th>
+            <th>Flag</th>
+            <th class="val-col">Fwd P/E</th>
+            <th class="val-col">Sect P/E</th>
+            <th class="val-col">vs Sect</th>
+            <th class="val-col">PEG</th>
           </tr>
         </thead>
-        <tbody id="priceBody">
-          <tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;"><span class="spinner"></span>Loading live prices…</td></tr>
-        </tbody>
+        <tbody id="expBody"></tbody>
       </table>
     </div>
-    <div class="val-leg">
-      <strong style="color:#475569;margin-right:4px">vs Sector:</strong>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--red)"></span>&gt;+30% premium</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--amber)"></span>+10–30%</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--sub)"></span>±10% in-line</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--green)"></span>&gt;-10% discount</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--teal)"></span>&gt;-40% deep discount</span>
-      <strong style="color:#475569;margin-left:10px;margin-right:4px">PEG:</strong>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--teal)"></span>&lt;0.5 exceptional</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--green)"></span>0.5–1.0 good</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--amber)"></span>1.0–2.0 fair</span>
-      <span class="val-leg-item"><span class="val-leg-dot" style="background:var(--red)"></span>&gt;2.0 expensive</span>
+    <div class="tbl-footnote">
+      Sect P/E = Damodaran Jan 2026 forward P/E by industry (updated annually). Fwd P/E &amp; PEG updated daily. True % includes estimated ETF overlap from VUSA/CNDX/VWRL/FTXR/VHYL — refreshed first Monday each month (last: <span id="etfOverlapDate"></span>). N/M = pre-profit. NOW prices post 5:1 split (Dec 2025).
     </div>
-    <div class="tbl-note">Prices via Twelve Data · Updates on refresh · Fwd P/E &amp; PEG from morning research · Sect P/E = Damodaran Jan 2026 benchmarks · NOW prices post 5-for-1 split Dec 2025</div>
   </div>
 
-  <!-- Morning note -->
-  <div class="card">
-    <div class="card-title">
-      📄 Morning note
-      <span class="card-title-badge live" id="noteBadge">—</span>
+  <div class="note-card">
+    <div class="note-hdr">
+      <div class="note-hdr-title">&#x1F4C4; Morning note</div>
+      <span class="note-badge" id="noteBadge">—</span>
     </div>
-    <div id="noteArea" class="note-empty">No morning note loaded.</div>
+    <div id="noteArea" class="note-empty">No morning note yet.</div>
   </div>
 
 </div>
 
-<div class="footer">Prices live via Twelve Data · Morning note &amp; valuation updated daily at 07:00 CET by scheduled task · <a href="https://github.com/ettienne15-droid/portfolio-dashboard" style="color:#94a3b8">GitHub</a></div>
+<div class="footer">Valuation &amp; morning note auto-updated weekdays at 07:00 CET</div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCbjNhLj8" crossorigin="anonymous"></script>
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const TD_KEY = '46215f3179294abbb32cc99417612e0c';
+document.getElementById('headerMeta').textContent = new Date().toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
-// ── PORTFOLIO ROWS ──────────────────────────────────────────────────────────
-// tdSym: symbol as Twelve Data expects it
-// direct: direct position in €, trueW: true weight % (incl ETF overlap)
-const STOCKS = [
-  {sym:'MSFT', tdSym:'MSFT', name:'Microsoft',          direct:5065, trueW:12.2, flag:'ow'},
-  {sym:'AMZN', tdSym:'AMZN', name:'Amazon',             direct:4488, trueW:9.9,  flag:'ow'},
-  {sym:'BRK.B',tdSym:'BRK-B',name:'Berkshire Hathaway', direct:4239, trueW:8.6,  flag:'ow'},
-  {sym:'NVDA', tdSym:'NVDA', name:'Nvidia',              direct:3027, trueW:8.0,  flag:'nt'},
-  {sym:'ZBRA', tdSym:'ZBRA', name:'Zebra Technologies',  direct:1814, trueW:3.6,  flag:''},
-  {sym:'IREN', tdSym:'IREN', name:'IREN Ltd (AI Cloud)', direct:1652, trueW:3.1,  flag:''},
-  {sym:'SYK',  tdSym:'SYK',  name:'Stryker',             direct:1326, trueW:2.7,  flag:''},
-  {sym:'VST',  tdSym:'VST',  name:'Vistra',              direct:1291, trueW:2.6,  flag:''},
-  {sym:'RKLB', tdSym:'RKLB', name:'Rocket Lab',          direct:1243, trueW:2.4,  flag:''},
-  {sym:'HXSCL',tdSym:null,   name:'SK Hynix GDR',       direct:1050, trueW:2.1,  flag:''},
-  {sym:'SPCX', tdSym:null,   name:'SpaceX (pre-IPO)',    direct:913,  trueW:1.7,  flag:''},
-  {sym:'NOW',  tdSym:'NOW',  name:'ServiceNow',          direct:683,  trueW:1.4,  flag:''},
-  {sym:'NFLX', tdSym:'NFLX', name:'Netflix',             direct:570,  trueW:1.2,  flag:''},
-  {sym:'V',    tdSym:'V',    name:'Visa',                direct:562,  trueW:1.2,  flag:''},
-  {sym:'VRT',  tdSym:'VRT',  name:'Vertiv',              direct:521,  trueW:1.1,  flag:''},
+const sectors = [
+  { label:'Tech / AI / Cloud',       pct:45.7, color:'#3b82f6' },
+  { label:'Diversified / Financial', pct:11.9, color:'#8b5cf6' },
+  { label:'ETF — non-tech rest',     pct:21.5, color:'#10b981' },
+  { label:'Energy / Power',          pct: 5.4, color:'#f59e0b' },
+  { label:'AI Infrastructure / Data Centers', pct: 3.2, color:'#06b6d4' },
+  { label:'Healthcare',              pct: 2.7, color:'#6ee7b7' },
+  { label:'Space / Aerospace',       pct: 4.1, color:'#ef4444' },
+  { label:'Other',                   pct: 5.5, color:'#cbd5e1' },
 ];
+const ctx = document.getElementById('sChart').getContext('2d');
+new Chart(ctx, {
+  type:'doughnut',
+  data:{ labels:sectors.map(s=>s.label), datasets:[{ data:sectors.map(s=>s.pct), backgroundColor:sectors.map(s=>s.color), borderWidth:2, borderColor:'#fff', hoverOffset:4 }] },
+  options:{ responsive:false, cutout:'60%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>` ${c.label}: ${c.raw}%` } } } }
+});
+const leg = document.getElementById('sLegend');
+sectors.forEach(s => {
+  leg.innerHTML += `<div class="leg-row"><div class="leg-dot" style="background:${s.color}"></div><div class="leg-label" title="${s.label}">${s.label}</div><div class="leg-pct">${s.pct}%</div></div>`;
+});
 
-const TOTAL_PORT = 53100;
-
-// ── VALUATION DATA (updated each morning by scheduled task) ─────────────────
 // VALUATION_DATA_START
-const VALUATION_DATA = {"updated":"Wed 17 Jun 2026","stocks":{"MSFT":{"fpe":20.8,"spe":34.1,"peg":0.80,"sm":"Software"},"AMZN":{"fpe":29.4,"spe":64.8,"peg":0.82,"sm":"Internet"},"BRK.B":{"fpe":23.2,"spe":14.9,"peg":null,"sm":"Diversified"},"NVDA":{"fpe":23.8,"spe":37.3,"peg":0.30,"sm":"Semiconductor"},"ZBRA":{"fpe":12.5,"spe":36.2,"peg":0.97,"sm":"Computers"},"IREN":{"fpe":null,"spe":37.3,"peg":null,"sm":"Semiconductor"},"SYK":{"fpe":20.7,"spe":42.3,"peg":1.48,"sm":"Healthcare"},"VST":{"fpe":17.3,"spe":17.6,"peg":0.47,"sm":"Power"},"RKLB":{"fpe":null,"spe":45.9,"peg":null,"sm":"Aerospace"},"HXSCL":{"fpe":7.6,"spe":37.3,"peg":0.04,"sm":"Semiconductor"},"NOW":{"fpe":24.2,"spe":34.1,"peg":0.98,"sm":"Software"},"NFLX":{"fpe":23.5,"spe":42.7,"peg":0.57,"sm":"Entertainment"},"V":{"fpe":22.2,"spe":16.4,"peg":1.46,"sm":"Financial"},"VRT":{"fpe":44.4,"spe":29.6,"peg":1.37,"sm":"Elec. Equip"}}};
+const VALUATION_DATA = {"updated":"Thu 19 Jun 2026","stocks":{"MSFT":{"fpe":21.3,"spe":34.1,"peg":1.32,"sm":"Software"},"AMZN":{"fpe":29.4,"spe":64.8,"peg":0.82,"sm":"Internet"},"BRK.B":{"fpe":23.2,"spe":14.9,"peg":null,"sm":"Diversified"},"NVDA":{"fpe":23.8,"spe":37.3,"peg":0.30,"sm":"Semiconductor"},"ZBRA":{"fpe":12.5,"spe":36.2,"peg":0.97,"sm":"Computers"},"IREN":{"fpe":null,"spe":37.3,"peg":null,"sm":"Semiconductor"},"SYK":{"fpe":25.0,"spe":42.3,"peg":2.55,"sm":"Healthcare"},"VST":{"fpe":17.5,"spe":17.6,"peg":null,"sm":"Power"},"RKLB":{"fpe":null,"spe":45.9,"peg":null,"sm":"Aerospace"},"HXSCL":{"fpe":7.6,"spe":37.3,"peg":0.03,"sm":"Semiconductor"},"NOW":{"fpe":27.7,"spe":34.1,"peg":null,"sm":"Software"},"NFLX":{"fpe":26.6,"spe":42.7,"peg":1.48,"sm":"Entertainment"},"V":{"fpe":22.0,"spe":16.4,"peg":1.76,"sm":"Financial"},"VRT":{"fpe":44.4,"spe":29.6,"peg":1.37,"sm":"Elec. Equip"}}};
 // VALUATION_DATA_END
 
-// ── MORNING NOTE (updated each morning by scheduled task) ───────────────────
+// ETF_BALANCES_START — update these when you make trades or top up
+const ETF_BALANCES = {"updated":"Jun 2026","VUSA":13546,"CNDX":1475,"VWRL":4267,"FTXR":3348,"VHYL":2031};
+// ETF_BALANCES_END
+
+// ETF_OVERLAP_DATA_START — updated automatically on the first Monday of each month
+const ETF_OVERLAP_DATA = {"updated":"Jun 2026","overlap":{"MSFT":1308,"AMZN":694,"BRK.B":244,"NVDA":1137,"ZBRA":50,"IREN":0,"SYK":80,"VST":40,"RKLB":30,"HXSCL":50,"SPCX":0,"NOW":60,"NFLX":112,"V":177,"VRT":80}};
+// ETF_OVERLAP_DATA_END
+
+if (VALUATION_DATA.updated) {
+  document.getElementById('valUpdated').textContent = 'Valuation data as of ' + VALUATION_DATA.updated;
+}
+if (ETF_OVERLAP_DATA.updated) {
+  const el = document.getElementById('etfOverlapDate');
+  if (el) el.textContent = ETF_OVERLAP_DATA.updated;
+}
+const vMap = VALUATION_DATA.stocks || {};
+const overlapMap = ETF_OVERLAP_DATA.overlap || {};
+
+const rows = [
+  {t:'MSFT', n:'Microsoft',          d:5065, f:'ow'},
+  {t:'AMZN', n:'Amazon',             d:4488, f:'ow'},
+  {t:'BRK.B',n:'Berkshire Hathaway', d:4239, f:'ow'},
+  {t:'NVDA', n:'Nvidia',             d:3027, f:'nt'},
+  {t:'ZBRA', n:'Zebra Technologies', d:1814, f:''},
+  {t:'IREN', n:'IREN Ltd',           d:1652, f:''},
+  {t:'SYK',  n:'Stryker',            d:1326, f:''},
+  {t:'VST',  n:'Vistra',             d:1291, f:''},
+  {t:'RKLB', n:'Rocket Lab',         d:1243, f:''},
+  {t:'HXSCL',n:'SK Hynix GDR',       d:1050, f:''},
+  {t:'SPCX', n:'SpaceX',             d:913,  f:''},
+  {t:'NOW',  n:'ServiceNow',         d:683,  f:''},
+  {t:'NFLX', n:'Netflix',            d:570,  f:''},
+  {t:'V',    n:'Visa',               d:562,  f:''},
+  {t:'VRT',  n:'Vertiv',             d:521,  f:''},
+];
+
+const PT = 53111;
+const tbody = document.getElementById('expBody');
+
+rows.forEach(r => {
+  const etfE = overlapMap[r.t] || 0;
+  const tot = r.d + etfE;
+  const pct = (tot/PT*100).toFixed(1);
+  const bw = Math.min(Math.round(parseFloat(pct)*5), 70);
+  const bc = r.f==='ow'?'#dc2626':r.f==='nt'?'#d97706':'#3b82f6';
+  const pc = r.f==='ow'?'td-ow':r.f==='nt'?'td-nt':'';
+  const badge = r.f==='ow'?'<span class="badge b-red">&#x26A0; Overweight</span>':r.f==='nt'?'<span class="badge b-amber">&#x25B2; Notable</span>':'<span class="badge b-gray">OK</span>';
+
+  const v = vMap[r.t] || {};
+
+  const fpeStr = v.fpe != null ? v.fpe.toFixed(1)+'x' : '<span style="color:#94a3b8">N/M</span>';
+  const speStr = v.spe != null ? v.spe.toFixed(1)+'x' : '—';
+
+  let vsStr = '—'; let vsClass = '';
+  if (v.fpe != null && v.spe != null) {
+    const vs = (v.fpe - v.spe) / v.spe * 100;
+    vsStr = (vs >= 0 ? '+' : '') + vs.toFixed(0) + '%';
+    if      (vs >  30) vsClass = 'vs-premium-high';
+    else if (vs >  10) vsClass = 'vs-premium-mid';
+    else if (vs > -10) vsClass = 'vs-neutral';
+    else if (vs > -40) vsClass = 'vs-discount-mid';
+    else               vsClass = 'vs-discount-high';
+  }
+
+  let pegStr = '<span class="peg-na">—</span>';
+  if (v.peg != null) {
+    let pegClass = v.peg < 0.5 ? 'peg-low' : v.peg < 1.0 ? 'peg-mid' : v.peg < 2.0 ? 'peg-fair' : 'peg-high';
+    pegStr = `<span class="${pegClass}">${v.peg.toFixed(2)}</span>`;
+  }
+
+  const sectLabel = v.sm || '';
+
+  tbody.innerHTML += `<tr>
+    <td><strong>${r.t}</strong> <span style="color:#94a3b8;font-size:11px">${r.n}</span></td>
+    <td class="${pc}">${pct}%</td>
+    <td><span class="bar-bg"><span class="bar-fg" style="width:${bw}px;background:${bc}"></span></span></td>
+    <td>${badge}</td>
+    <td class="val-col val-num" title="Forward P/E · Sector: ${sectLabel}">${fpeStr}</td>
+    <td class="val-col val-num" style="color:#64748b" title="Sector median fwd P/E (Damodaran Jan 2026) · ${sectLabel}">${speStr}</td>
+    <td class="val-col val-num ${vsClass}">${vsStr}</td>
+    <td class="val-col val-num">${pegStr}</td>
+  </tr>`;
+});
+
 // MORNING_NOTE_DATA_START
-const MORNING_NOTE = {"date":"Wed 17 Jun","content":"MORNING NOTE — Wed 17 Jun 2026\nEttienne's Portfolio · Total ~€52,200\n------------------------------------------------\n\nTOP CALL\nTech and semis sold off Tuesday as the Fed rate decision looms, pulling Nasdaq down 1.15%. NVDA (-2.37%) and the broader semiconductor complex took the brunt. MSFT (-1.48%) deepens its YTD underperformance — now 40% below analyst consensus ($552) — the portfolio's largest position is both its biggest risk and its clearest catch-up opportunity.\n\nMARKET CONTEXT\nS&P 500 near-flat (-0.08%, 7,549). Dow hit a record high (+0.64%, ~52,000) on defensive rotation. Nasdaq fell 1.15% — AMD -7.3%, Micron -6.2%, Broadcom -4.4%, NVDA -2.4%. Fed rate decision today (Wed Jun 18) is the near-term binary. Strait of Hormuz deal reportedly near, geopolitical tail risk fading.\n\nPORTFOLIO ALERTS\nMSFT true weight 12.2% — OVERWEIGHT. AMZN 9.9% — OVERWEIGHT. BRK.B 8.6% — OVERWEIGHT. NVDA 8.0% — NOTABLE. True tech exposure ~45.7%. Semi sector weakness hits triple via NVDA direct + HXSCL + ETF overlap.\n\nSTOCKS — Wed 17 Jun 2026\nMSFT $393.83 (-1.48%) — Trump AI EO + semi selloff weigh on largest holding — ACTION: Watch\n  -> Watch: 40% below analyst consensus ($552); recovery hinges on AI narrative stabilisation\nAMZN $246.00 (flat) — Quiet day; $200bn capex debate continues — ACTION: No action\nBRK.B ~$495 (flat) — Defensive haven; holding up well in risk-off — ACTION: No action\nNVDA $207.41 (-2.37%) — Semis hit broadly; AMD -7.3% signals wider re-rating risk; 33% below consensus ($309) — ACTION: Watch\n  -> Watch: AMD's -7.3% move may signal deeper sector de-rating beyond sentiment\nZBRA $237.39 (-1.11%) — AI Nucleus platform launched at ZONE 2026; thesis refreshed — ACTION: No action\nIREN $59.18 (-2.74%) — Sector sympathy selloff; $3.65bn GPU facility closed Jun 1; thesis intact — ACTION: Watch\n  -> Watch: GPU deployment pace toward 150K B300 GPUs and ARR additions vs $3.7bn target\nSYK $310.58 (+0.86%) — Outperforming on defensive bid — ACTION: No action\nVST $158.61 (+3.32%) — Utilities rally on rate uncertainty; AI power demand story intact — ACTION: No action\nRKLB $104.63 (-4.23%) — SpaceX IPO overhang; Q1 record rev +63.5% YoY, backlog $2.2bn — ACTION: Watch\n  -> Watch: SpaceX IPO timing — competitive pressure or sector validation catalyst\nHXSCL ~$1,460 (est.) — US listing advancing; 2026 HBM capacity fully contracted — ACTION: No action\nNOW $101.33 (-2.71%) — Software selloff; earnings Jul 29; AI integration expanding — ACTION: No action\nNFLX $78.72 (-3.61%) — Nasdaq drag; no specific news — ACTION: No action\nV $333.12 (+2.87%) — AI/stablecoin payments story lifting; analyst target $399 — ACTION: No action\nVRT $299.60 (-3.95%) — AI DC names hit on rate fear; dividend Jun 25 — ACTION: Watch\n  -> Watch: 44.4x fwd P/E vs 29.6x sector (+50% premium); justified only by sustained AI DC order growth\n\nVALUATION WATCH\nMSFT drops to 20.8x fwd P/E vs 34.1x sector (-39% discount) — deepest discount in the portfolio for the largest holding; strong reversion thesis if AI normalises. VRT improved to 44.4x (from 53.8x) as price fell but still +50% premium to sector — monitor order flow. NVDA at 23.8x vs 37.3x sector (-36% discount) with PEG 0.30 — compelling value intact despite selloff.\n\nKEY EVENTS THIS WEEK\nFed rate decision Wed Jun 18 (critical binary for all AI names). VRT dividend Jun 25. V earnings Jul 28. NOW earnings Jul 29. IREN quarterly results Sept 16.\n\nPORTFOLIO HEALTH\nMixed session: V (+2.9%) and VST (+3.3%) were the standouts; SYK and BRK.B held firm on defensive rotation. Semi/tech weakness hit NVDA, RKLB, VRT, NFLX, NOW. Today's Fed decision is the dominant near-term catalyst — a dovish signal or hold could spark an AI-name rebound. MSFT overweight at -39% vs sector is the portfolio's most live tension point."};
+const MORNING_NOTE = {"date":"Thu 19 Jun","content":"MORNING NOTE -- Thu 19 Jun 2026\nEttienne's Portfolio - Total ~EUR 53,100\n------------------------------------------------\n\nTOP CALL\nMarket rebounded strongly Friday (Nasdaq +1.91%) after Thursday's FOMC selloff. VRT surged +4.87% on AI data center order momentum; NVDA completed a $25bn debt offering. MSFT lagged (+0.13%) with a Renaissance Macro Sell rating and -19% YTD -- the portfolio's largest position remains its key watch.\n\nMARKET CONTEXT\nS&P 500 +1.08% (26,518), Nasdaq +1.91%, Russell 2000 +2.12%. Broad recovery after Thursday's FOMC-driven selloff; Fed signalling possible rate hikes later in 2026. US ends Iran blockade -- geopolitical tail risk fading, small positive for energy.\n\nPORTFOLIO ALERTS\nMSFT true weight 12.2% -- OVERWEIGHT. AMZN 9.9% -- OVERWEIGHT. BRK.B 8.6% -- OVERWEIGHT. NVDA 8.0% -- NOTABLE. True tech exposure ~45.7%.\n\nSTOCKS -- Thu 19 Jun 2026\nMSFT $379.40 (+0.13%) -- Sell rating from Renaissance Macro; -19% YTD; Copilot headwinds -- ACTION: Watch\n  -> Watch: 21.3x fwd P/E vs 34.1x sector (-38% discount) + Sell rating; AI narrative reset needed\nAMZN $244.39 (+2.90%) -- Custom AI chip sales story; $200bn capex debate continues -- ACTION: Watch\n  -> Watch: Whether chip monetisation adds AI revenue beyond AWS to justify the capex\nBRK.B $488.77 (+0.56%) -- Abel's first full quarter; $373bn cash; solid defensive -- ACTION: No action\nNVDA $210.69 (+2.95%) -- $25bn debt offering closed; consensus target $299, 42% upside -- ACTION: No action\nZBRA $235.98 (+1.29%) -- Riding broad tech recovery; no specific news -- ACTION: No action\nIREN $59.96 (+3.18%) -- AI cloud thesis intact; sector recovery lifting performance -- ACTION: Watch\n  -> Watch: GPU deployment pace toward 150K B300 GPUs and ARR additions vs $3.7bn target\nSYK $307.80 (+2.21%) -- Healthcare outperforming; defensive demand holding -- ACTION: No action\nVST $163.75 (+3.10%) -- US ends Iran blockade; AI power demand intact -- ACTION: No action\nRKLB $107.24 (-0.69%) -- Nasdaq-100 inclusion positive; SpaceX IPO volatility headwind -- ACTION: Watch\n  -> Watch: SpaceX IPO timing -- competitive pressure or space sector validation\nHXSCL No data -- check manually -- HBM demand intact via NVDA strength -- ACTION: No action\nNOW $95.04 (-0.46%) -- Slight underperform in tech recovery; earnings Jul 29 -- ACTION: No action\nNFLX $77.38 (+0.55%) -- Modest bounce; no material news -- ACTION: No action\nV $327.24 (-0.95%) -- Pullback; fwd P/E at +34% sector premium, crosses flag threshold -- ACTION: No action\nVRT $333.05 (+4.87%) -- Best portfolio mover; AI DC order momentum from NVDA positive -- ACTION: Watch\n  -> Watch: 44.4x fwd P/E vs 29.6x sector (+50% premium) -- sustained only by order flow\n\nVALUATION WATCH\nV moves to 22.0x fwd P/E vs 16.4x sector (+34% premium) -- crosses the +30% flag threshold. VRT holds at 44.4x vs 29.6x sector (+50% premium) after today's surge. MSFT remains deepest discount at 21.3x vs 34.1x sector (-38%), underpinning the catch-up thesis.\n\nKEY EVENTS AHEAD\nVRT dividend Jun 25. V earnings Jul 28. NOW earnings Jul 29. IREN quarterly Sept 16. Monitor Fed commentary post-Jun 18 FOMC.\n\nPORTFOLIO HEALTH\nStrong Friday: VRT (+4.87%), NVDA (+2.95%), AMZN (+2.90%), VST (+3.10%) all outperformed. MSFT lag (-19% YTD, Sell rating) remains the portfolio's chief tension. RKLB the only decliner. Iran tail risk fading and FOMC outcome priced in -- risk tone has improved."};
 // MORNING_NOTE_DATA_END
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
-function fmtChg(val, pct) {
-  if (val == null) return '<span class="chg fl">—</span>';
-  const sign = val >= 0 ? '+' : '';
-  const cls = val > 0.05 ? 'up' : val < -0.05 ? 'dn' : 'fl';
-  return `<span class="chg ${cls}">${sign}${Number(pct).toFixed(2)}%</span>`;
-}
-function vsClass(fpe, spe) {
-  if (fpe == null || spe == null) return ['—',''];
-  const vs = (fpe - spe) / spe * 100;
-  const str = (vs >= 0 ? '+' : '') + vs.toFixed(0) + '%';
-  let cls = '';
-  if      (vs >  30) cls = 'vs-hi';
-  else if (vs >  10) cls = 'vs-mid';
-  else if (vs > -10) cls = 'vs-ok';
-  else if (vs > -40) cls = 'vs-disc';
-  else               cls = 'vs-deep';
-  return [str, cls];
-}
-function pegStr(peg) {
-  if (peg == null) return '<span class="peg-na">—</span>';
-  const cls = peg < 0.5 ? 'peg-exc' : peg < 1.0 ? 'peg-good' : peg < 2.0 ? 'peg-fair' : 'peg-exp';
-  return `<span class="${cls}">${peg.toFixed(2)}</span>`;
-}
-
-// ── RENDER NOTE ──────────────────────────────────────────────────────────────
-(function renderNote() {
+(function() {
   const area = document.getElementById('noteArea');
   const badge = document.getElementById('noteBadge');
-  if (MORNING_NOTE && MORNING_NOTE.content && MORNING_NOTE.content.length > 10) {
+  if (MORNING_NOTE.content && MORNING_NOTE.content.length > 10) {
     badge.textContent = MORNING_NOTE.date || 'Today';
-    badge.classList.add('live');
+    badge.classList.add('note-badge-live');
     area.textContent = MORNING_NOTE.content;
     area.className = 'note-body';
   }
 })();
-
-// ── HEADER DATE ──────────────────────────────────────────────────────────────
-document.getElementById('hdrDate').textContent =
-  new Date().toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-document.getElementById('valUpdated') && (document.getElementById('valUpdated').textContent = VALUATION_DATA.updated);
-
-// ── FETCH LIVE PRICES ────────────────────────────────────────────────────────
-async function loadPrices() {
-  const badge = document.getElementById('priceBadge');
-  const ts = document.getElementById('priceTimestamp');
-  const body = document.getElementById('priceBody');
-
-  badge.textContent = 'Loading…';
-  badge.className = 'card-title-badge loading';
-  body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;"><span class="spinner"></span>Fetching live prices…</td></tr>';
-
-  // Only fetch symbols with a tdSym (excludes HXSCL, SPCX)
-  const tdList = STOCKS.filter(s => s.tdSym);
-  const symParam = tdList.map(s => s.tdSym).join(',');
-
-  let data = {};
-
-  // Serve from cache if last successful fetch was < 60 seconds ago
-  try {
-    const cached = JSON.parse(localStorage.getItem('tdCache') || 'null');
-    if (cached && (Date.now() - cached.t) < 7200000) {
-      const ageMin = Math.round((Date.now() - cached.t) / 60000);
-      renderPrices(cached.d);
-      badge.textContent = '✓ Live';
-      badge.className = 'card-title-badge live';
-      ts.textContent = `Last updated: ${new Date(cached.t).toLocaleTimeString('en-GB')} · cached ${ageMin < 1 ? '<1 min' : ageMin + ' min'} ago`;
-      // Still fetch SPY for market stat
-      fetch(`https://api.twelvedata.com/price?symbol=SPY&apikey=${TD_KEY}`)
-        .then(r=>r.json()).then(d=>{
-          if(d && d.price) {
-            // we don't have previous close here so skip percent change
-          }
-        }).catch(()=>{});
-      return;
-    }
-  } catch(e) {}
-
-  try {
-    const url = `https://api.twelvedata.com/quote?symbol=${symParam}&apikey=${TD_KEY}`;
-    const res = await fetch(url);
-    const raw = await res.json();
-
-    if (raw.code === 429 || raw.status === 'error') throw new Error(raw.message || 'API error');
-
-    // Normalise: multi-symbol → nested by symbol; single → direct object
-    tdList.forEach(s => {
-      const r = raw[s.tdSym];
-      if (r && !r.code && r.close) data[s.sym] = r;
-      else if (raw.symbol === s.tdSym && raw.close) data[s.sym] = raw;
-    });
-
-    if (Object.keys(data).length > 0) {
-      // Cache successful result (timestamp + data)
-      localStorage.setItem('tdCache', JSON.stringify({t: Date.now(), d: data}));
-    }
-
-    // SPY for S&P stat
-    try {
-      const spy = await fetch(`https://api.twelvedata.com/quote?symbol=SPY&apikey=${TD_KEY}`);
-      const spyData = await spy.json();
-      if (spyData && spyData.percent_change) {
-        const p = parseFloat(spyData.percent_change);
-        const sign = p >= 0 ? '+' : '';
-        const el = document.getElementById('mktStat');
-        el.textContent = sign + p.toFixed(2) + '%';
-        el.className = 'val ' + (p >= 0 ? 'c-green' : 'c-red');
-      }
-    } catch(e) {}
-
-  } catch(err) {
-    console.error('[TwelveData] fetch error:', err.message);
-    // On rate limit or error, try the cache (even if stale)
-    try {
-      const cached = JSON.parse(localStorage.getItem('tdCache') || 'null');
-      if (cached && cached.d) {
-        const ageMin = Math.round((Date.now() - cached.t) / 60000);
-        renderPrices(cached.d);
-        badge.textContent = 'Cached';
-        badge.className = 'card-title-badge loading';
-        ts.textContent = `Rate limited — showing cached data from ${new Date(cached.t).toLocaleTimeString('en-GB')} (${ageMin} min ago). Prices refresh every 2 hrs.`;
-        return;
-      }
-    } catch(e) {}
-    badge.textContent = 'Rate limited';
-    badge.className = 'card-title-badge error';
-    ts.textContent = 'API rate limited — prices will load on next successful fetch. Try again in a minute.';
-  }
-
-  // Always render — hardcoded fallbacks handle HXSCL/SPCX
-  if (Object.keys(data).length > 0) {
-    renderPrices(data);
-    badge.textContent = '✓ Live';
-    badge.className = 'card-title-badge live';
-    ts.textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-GB') + ' · Prices via Twelve Data';
-  } else {
-    renderPrices({});
-  }
-}
-
-function renderPrices(data) {
-  const body = document.getElementById('priceBody');
-  const vMap = VALUATION_DATA.stocks || {};
-  let html = '';
-
-  STOCKS.forEach(s => {
-    const q = data[s.sym];
-    const v = vMap[s.sym] || {};
-
-    // Price & change
-    let priceHtml = '<span style="color:#94a3b8">—</span>';
-    let chgHtml = '<span class="chg fl">—</span>';
-
-    if (s.sym === 'SPCX') {
-      priceHtml = '<span style="color:#94a3b8;font-size:11px">Pre-IPO</span>';
-    } else if (q && q.close) {
-      const px = parseFloat(q.close);
-      const pct = parseFloat(q.percent_change || 0);
-      priceHtml = `$${px.toFixed(2)}`;
-      chgHtml = fmtChg(pct, pct);
-    } else if (s.sym === 'HXSCL') {
-      priceHtml = '<span style="color:#94a3b8;font-size:11px">~$1,460</span>';
-      chgHtml = '<span class="chg fl">OTC est.</span>';
-    }
-
-    // Weight bar
-    const bw = Math.min(Math.round(s.trueW * 5), 70);
-    const bc = s.flag === 'ow' ? 'var(--red)' : s.flag === 'nt' ? 'var(--amber)' : 'var(--blue)';
-    const weightHtml = `<div class="weight-bar"><span class="bar-bg"><span class="bar-fg" style="width:${bw}px;background:${bc}"></span></span><span style="font-size:11px;color:${s.flag==='ow'?'var(--red)':s.flag==='nt'?'var(--amber)':'var(--sub)'};font-weight:${s.flag?'700':'400'}">${s.trueW}%</span></div>`;
-
-    // Flag
-    const flagHtml = s.flag === 'ow'
-      ? '<span class="flag f-red">⚠ Overweight</span>'
-      : s.flag === 'nt'
-        ? '<span class="flag f-amber">▲ Notable</span>'
-        : '<span class="flag f-gray">OK</span>';
-
-    // Valuation
-    const fpeHtml = v.fpe != null ? `${v.fpe.toFixed(1)}x` : '<span style="color:#94a3b8">N/M</span>';
-    const [vsStr, vsCls] = vsClass(v.fpe, v.spe);
-    const vsHtml = vsStr === '—' ? '—' : `<span class="${vsCls}">${vsStr}</span>`;
-    const pHtml = pegStr(v.peg);
-
-    const symClass = s.flag === 'ow' ? 'td-ow' : s.flag === 'nt' ? 'td-nt' : '';
-
-    html += `<tr>
-      <td><div class="sym ${symClass}">${s.sym}</div><div class="co-name">${s.name}</div></td>
-      <td class="price">${priceHtml}</td>
-      <td class="price">${chgHtml}</td>
-      <td class="hide-sm">${weightHtml}</td>
-      <td class="hide-sm">${flagHtml}</td>
-      <td class="val-col hide-sm">${fpeHtml}</td>
-      <td class="val-col hide-sm">${vsHtml}</td>
-      <td class="val-col hide-sm">${pHtml}</td>
-    </tr>`;
-  });
-
-  body.innerHTML = html;
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadPrices();
 </script>
 </body>
 </html>
